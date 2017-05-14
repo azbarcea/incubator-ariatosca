@@ -114,6 +114,7 @@ class CtxProxy(object):
                 'payload': payload
             }, cls=modeling.utils.ModelJSONEncoder)
         except Exception as e:
+            self.ctx.model.log._session.rollback()
             traceback_out = StringIO.StringIO()
             traceback.print_exc(file=traceback_out)
             payload = {

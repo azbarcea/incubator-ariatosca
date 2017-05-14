@@ -34,7 +34,8 @@ class NodeToolBelt(object):
         """
         assert isinstance(self._op_context, operation.NodeOperationContext)
         host = self._op_context.node.host
-        return host.runtime_properties.get('ip')
+        return getattr(host.attributes.get('ip'), 'value', None)
+
 
 
 class RelationshipToolBelt(object):

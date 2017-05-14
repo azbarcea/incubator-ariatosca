@@ -18,6 +18,7 @@ A common context for both workflow and operation
 """
 
 import logging
+import collections
 from contextlib import contextmanager
 from functools import partial
 
@@ -195,3 +196,165 @@ class BaseContext(object):
         variables.setdefault('ctx', self)
         resource_template = jinja2.Template(resource_content)
         return resource_template.render(variables)
+
+    def _teardown_db_resources(self):
+        self.model.log._session.close()
+        self.model.log._engine.dispose()
+
+class _Dict(collections.MutableMapping):
+    def __init__(self, actor, model, nested=None):
+        super(_Dict, self).__init__()
+        self._actor = actor
+        self._attributes = self._actor.attributes
+        self._model = model
+        self._attr_cls = self._model.parameter.model_cls
+        self._nested = nested or []
+
+    def __delitem__(self, key):
+        del self._nested_value[key]
+
+    def __contains__(self, item):
+        for key in self.keys():
+            if item == key:
+                return True
+        return False
+
+    def __len__(self):
+        return len(self._nested_value)
+
+    def __nonzero__(self):
+        return bool(self._nested_value)
+
+    def __getitem__(self, item):
+        if self._nested:
+            value = self._nested_value[item]
+        else:
+            value = self._attributes[item].value
+        if isinstance(value, dict):
+            return _Dict(self._actor, self._model, nested=self._nested + [item])
+        elif isinstance(value, self._attr_cls):
+            return value.value
+        return value
+
+    def __setitem__(self, key, value):
+        if self._nested or key in self._attributes:
+            attribute = self._update_attr(key, value)
+            self._model.parameter.update(attribute)
+        else:
+            attr = self._attr_cls.wrap(key, value)
+            self._attributes[key] = attr
+            self._model.parameter.put(attr)
+
+    @property
+    def _nested_value(self):
+        current = self._attributes
+        for k in self._nested:
+            current = current[k]
+        return current.value if isinstance(current, self._attr_cls) else current
+
+    def _update_attr(self, key, value):
+        current = self._attributes
+
+        # If this is nested, lets extract the Parameter itself
+        if self._nested:
+            attribute = current = current[self._nested[0]]
+            for k in self._nested[1:]:
+                current = current[k]
+            if isinstance(current, self._attr_cls):
+                current.value[key] = value
+            else:
+                current[key] = value
+        elif isinstance(current[key], self._attr_cls):
+            attribute = current[key]
+            attribute.value = value
+        else:
+            raise BaseException()
+
+        # Since this a user defined parameter, this doesn't track changes. So we override the entire
+        # thing.
+        if isinstance(attribute.value, dict):
+            value = attribute.value.copy()
+            attribute.value.clear()
+        attribute.value = value
+        return attribute
+
+    def _unwrap(self, attr):
+        return attr.unwrap() if isinstance(attr, self._attr_cls) else attr
+
+    def keys(self):
+        dict_ = (self._nested_value.value
+                 if isinstance(self._nested_value, self._attr_cls)
+                 else self._nested_value)
+        for key in dict_.keys():
+            yield key
+
+    def values(self):
+        for val in self._nested_value.values():
+            if isinstance(val, self._attr_cls):
+                yield val.value
+            else:
+                yield val
+
+    def items(self):
+        for key in self._nested_value:
+            val = self._nested_value[key]
+            if isinstance(val, self._attr_cls):
+                yield key, val.value
+            else:
+                yield key, val
+
+    def __dict__(self):
+        return dict(item for item in self.items())
+
+    def __iter__(self):
+        for key in self._nested_value.keys():
+            yield key
+
+    def __copy__(self):
+        return dict((k, v) for k, v in self.items())
+
+    def __deepcopy__(self, *args, **kwargs):
+        return self.__copy__()
+
+    def copy(self):
+        return self.__copy__()
+
+    def clear(self):
+        self._nested_value.clear()
+
+    def update(self, dict_=None, **kwargs):
+        if dict_:
+            for key, value in dict_.items():
+                self[key] = value
+
+        for key, value in kwargs.items():
+            self[key] = value
+
+
+class DecorateAttributes(dict):
+
+    def __init__(self, func):
+        super(DecorateAttributes, self).__init__()
+        self._func = func
+        self._attributes = None
+        self._actor = None
+
+    @property
+    def attributes(self):
+        return self._attributes
+
+    @property
+    def actor(self):
+        return self._actor
+
+    def __getattr__(self, item):
+        try:
+            return getattr(self._actor, item)
+        except AttributeError:
+            return super(DecorateAttributes, self).__getattribute__(item)
+
+    def __call__(self, *args, **kwargs):
+        func_self = args[0]
+        self._actor = self._func(*args, **kwargs)
+        self._attributes = _Dict(self._actor, func_self.model)
+        return self

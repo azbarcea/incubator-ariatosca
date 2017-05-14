@@ -21,10 +21,10 @@ import threading
 
 import aria
 from aria.utils import file
-from .common import BaseContext
+from . import common
 
 
-class BaseOperationContext(BaseContext):
+class BaseOperationContext(common.BaseContext):
     """
     Context object used during operation creation and execution
     """
@@ -105,6 +105,7 @@ class NodeOperationContext(BaseOperationContext):
     """
 
     @property
+    @common.DecorateAttributes
     def node_template(self):
         """
         the node of the current operation
@@ -113,6 +114,7 @@ class NodeOperationContext(BaseOperationContext):
         return self.node.node_template
 
     @property
+    @common.DecorateAttributes
     def node(self):
         """
         The node instance of the current operation
@@ -127,6 +129,7 @@ class RelationshipOperationContext(BaseOperationContext):
     """
 
     @property
+    @common.DecorateAttributes
     def source_node_template(self):
         """
         The source node
@@ -135,6 +138,7 @@ class RelationshipOperationContext(BaseOperationContext):
         return self.source_node.node_template
 
     @property
+    @common.DecorateAttributes
     def source_node(self):
         """
         The source node instance
@@ -143,6 +147,7 @@ class RelationshipOperationContext(BaseOperationContext):
         return self.relationship.source_node
 
     @property
+    @common.DecorateAttributes
     def target_node_template(self):
         """
         The target node
@@ -151,6 +156,7 @@ class RelationshipOperationContext(BaseOperationContext):
         return self.target_node.node_template
 
     @property
+    @common.DecorateAttributes
     def target_node(self):
         """
         The target node instance
