@@ -502,7 +502,8 @@ def attribute_consuming_operation(ctx, holder_path, **_):
 
 class MockActor(object):
     def __init__(self):
-        self.attributes = {}
+        self.attributes_dict = {}
+        self.attributes_list = []
 
 
 class MockModel(object):
@@ -524,8 +525,8 @@ class TestDict(object):
         return MockModel()
 
     def test_keys(self, model, actor):
-        dict_ = common._Dict(actor, model)
-        actor.attributes.update(
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
+        actor.attributes_dict.update(
             {
                 'key1': Parameter.wrap('key1', 'value1'),
                 'key2': Parameter.wrap('key1', 'value2')
@@ -534,40 +535,40 @@ class TestDict(object):
         assert sorted(dict_.keys()) == sorted(['key1', 'key2'])
 
     def test_values(self, model, actor):
-        dict_ = common._Dict(actor, model)
-        actor.attributes.update({
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
+        actor.attributes_dict.update({
             'key1': Parameter.wrap('key1', 'value1'),
             'key2': Parameter.wrap('key1', 'value2')
         })
         assert sorted(dict_.values()) == sorted(['value1', 'value2'])
 
     def test_items(self, actor, model):
-        dict_ = common._Dict(actor, model)
-        actor.attributes.update({
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
+        actor.attributes_dict.update({
             'key1': Parameter.wrap('key1', 'value1'),
             'key2': Parameter.wrap('key1', 'value2')
         })
         assert sorted(dict_.items()) == sorted([('key1', 'value1'), ('key2', 'value2')])
 
     def test_iter(self, actor, model):
-        dict_ = common._Dict(actor, model)
-        actor.attributes.update({
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
+        actor.attributes_dict.update({
             'key1': Parameter.wrap('key1', 'value1'),
             'key2': Parameter.wrap('key1', 'value2')
         })
         assert sorted(list(dict_)) == sorted(['key1', 'key2'])
 
     def test_bool(self, actor, model):
-        dict_ = common._Dict(actor, model)
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
         assert not dict_
-        actor.attributes.update({
+        actor.attributes_dict.update({
             'key1': Parameter.wrap('key1', 'value1'),
             'key2': Parameter.wrap('key1', 'value2')
         })
         assert dict_
 
     def test_set_item(self, actor, model):
-        dict_ = common._Dict(actor, model)
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
         dict_['key1'] = Parameter.wrap('key1', 'value1')
         assert 'key1' in dict_
         assert isinstance(dict_._attributes['key1'], Parameter)
@@ -583,13 +584,13 @@ class TestDict(object):
         assert dict_['key1']['inner_key'] == 'value2'
 
     def test_get_item(self, actor, model):
-        dict_ = common._Dict(actor, model)
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
         dict_['key1'] = Parameter.wrap('key1', 'value1')
 
         assert isinstance(dict_._attributes['key1'], Parameter)
 
     def test_update(self, actor, model):
-        dict_ = common._Dict(actor, model)
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
         dict_['key1'] = 'value1'
 
         new_dict = {'key2': 'value2'}
@@ -603,7 +604,7 @@ class TestDict(object):
         assert new_dict['key1'] == dict_['key1']
 
     def test_copy(self, actor, model):
-        dict_ = common._Dict(actor, model)
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
         dict_['key1'] = 'value1'
 
         new_dict = dict_.copy()
@@ -615,8 +616,54 @@ class TestDict(object):
         assert dict_['key1'] == 'value2'
 
     def test_clear(self, actor, model):
-        dict_ = common._Dict(actor, model)
+        dict_ = common._Dict(actor, actor.attributes_dict, model)
         dict_['key1'] = 'value1'
         dict_.clear()
 
         assert len(dict_) == 0
+
+
+class TestList(object):
+    @pytest.fixture
+    def actor(self):
+        return MockActor()
+
+    @pytest.fixture
+    def model(self):
+        return MockModel()
+
+    def test_insert(self, model, actor):
+        list_ = common._List(actor, actor.attributes_list, model)
+        list_.append(Parameter.wrap('name', 'value1'))
+        list_.append('value2')
+
+        assert len(list_) == 2
+        assert isinstance(list_._attributes[0], Parameter)
+        assert list_[0] == 'value1'
+
+        assert isinstance(list_._attributes[1], Parameter)
+        assert list_[1] == 'value2'
+
+        list_[0] = 'new_value1'
+        list_[1] = 'new_value2'
+        assert isinstance(list_._attributes[1], Parameter)
+        assert isinstance(list_._attributes[1], Parameter)
+        assert list_[0] == 'new_value1'
+        assert list_[1] == 'new_value2'
+
+    def test_insert_into_nested(self, model, actor):
+        list_ = common._List(actor, actor.attributes_list, model)
+        list_.append([])
+
+        list_[0].append('inner_item')
+        assert isinstance(list_._attributes[0], Parameter)
+        assert len(list_) == 1
+        assert list_[0][0] == 'inner_item'
+
+        list_[0].append('new_item')
+        assert isinstance(list_._attributes[0], Parameter)
+        assert len(list_) == 1
+        assert list_[0][1] == 'new_item'
+
+        assert list_[0] == ['inner_item', 'new_item']
+        assert ['inner_item', 'new_item'] == list_[0]

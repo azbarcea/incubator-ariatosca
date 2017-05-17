@@ -105,7 +105,7 @@ class NodeOperationContext(BaseOperationContext):
     """
 
     @property
-    @common.DecorateAttributes
+    @common.InstrumentCollection('attributes')
     def node_template(self):
         """
         the node of the current operation
@@ -114,7 +114,7 @@ class NodeOperationContext(BaseOperationContext):
         return self.node.node_template
 
     @property
-    @common.DecorateAttributes
+    @common.InstrumentCollection('attributes')
     def node(self):
         """
         The node instance of the current operation
@@ -129,7 +129,7 @@ class RelationshipOperationContext(BaseOperationContext):
     """
 
     @property
-    @common.DecorateAttributes
+    @common.InstrumentCollection('attributes')
     def source_node_template(self):
         """
         The source node
@@ -138,7 +138,7 @@ class RelationshipOperationContext(BaseOperationContext):
         return self.source_node.node_template
 
     @property
-    @common.DecorateAttributes
+    @common.InstrumentCollection('attributes')
     def source_node(self):
         """
         The source node instance
@@ -147,7 +147,7 @@ class RelationshipOperationContext(BaseOperationContext):
         return self.relationship.source_node
 
     @property
-    @common.DecorateAttributes
+    @common.InstrumentCollection('attributes')
     def target_node_template(self):
         """
         The target node
@@ -156,7 +156,7 @@ class RelationshipOperationContext(BaseOperationContext):
         return self.target_node.node_template
 
     @property
-    @common.DecorateAttributes
+    @common.InstrumentCollection('attributes')
     def target_node(self):
         """
         The target node instance
